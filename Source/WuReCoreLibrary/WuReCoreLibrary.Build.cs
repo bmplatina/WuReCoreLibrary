@@ -25,7 +25,7 @@ public class WuReCoreLibrary : ModuleRules
 		var publicDependencies = new string[]
 		{
 			"Core",
-			"UMG",
+			"UMG", "CommonUI",
 			"InputCore", "CommonInput", "EnhancedInput",
 			"Slate",
 			"SlateCore",
@@ -36,10 +36,12 @@ public class WuReCoreLibrary : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			Array.Resize(ref publicDependencies, publicDependencies.Length + 3);
-			publicDependencies[publicDependencies.Length - 3] = "DLSSBlueprint";
-			publicDependencies[publicDependencies.Length - 2] = "NISBlueprint";
-			publicDependencies[publicDependencies.Length - 1] = "StreamlineBlueprint";
+			Array.Resize(ref publicDependencies, publicDependencies.Length + 5);
+			publicDependencies[publicDependencies.Length - 5] = "DLSSBlueprint";
+			publicDependencies[publicDependencies.Length - 4] = "NISBlueprint";
+			publicDependencies[publicDependencies.Length - 3] = "StreamlineBlueprint";
+			publicDependencies[publicDependencies.Length - 2] = "StreamlineDLSSGBlueprint";
+			publicDependencies[publicDependencies.Length - 1] = "StreamlineReflexBlueprint";
 		}
 			
 		PublicDependencyModuleNames.AddRange(publicDependencies);
@@ -50,7 +52,8 @@ public class WuReCoreLibrary : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				// ... add private dependencies that you statically link with here ...	
+				"RenderCore",
+				// ... add private dependencies that you statically link with here ...
 			}
 			);
 		

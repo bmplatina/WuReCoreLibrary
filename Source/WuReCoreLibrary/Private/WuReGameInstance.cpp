@@ -3,6 +3,7 @@
 #include "WuReGameInstance.h"
 #include "JsonObjectConverter.h"
 #include "WuReUserWidget.h"
+#include "WuRePlayerController.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundMix.h"
@@ -19,11 +20,11 @@
 #include "StreamlineLibraryReflex.h"
 #endif
 
-UWuReGameInstance::UWuReGameInstance()
+UDEPRECATED_UWuReGameInstance::UDEPRECATED_UWuReGameInstance()
 {
 }
 
-void UWuReGameInstance::Init() {
+void UDEPRECATED_UWuReGameInstance::Init() {
 	Super::Init();
 	const TWeakObjectPtr<UGameUserSettings> UserSettings = UGameUserSettings::GetGameUserSettings();
 
@@ -34,7 +35,7 @@ void UWuReGameInstance::Init() {
 	if(GetSettingsFromJson())
 	{
 		CommonSettings.IsInitLoad = false;
-		// if config.json is valid, FSettings->GameUserSettings
+		// if config.json is valid, FWuReUserSettings->GameUserSettings
 		if(IsValid(SCMIX.Get()) && IsValid(SoundAmbient.Get()) && IsValid(SoundSFX.Get()) && IsValid(SoundMusic.Get()) && IsValid(GetWorld()))
 		{
 			UGameplayStatics::SetSoundMixClassOverride(GetWorld(), SCMIX.Get(), SoundAmbient.Get(), CommonSettings.AmbientSound);
@@ -52,7 +53,7 @@ void UWuReGameInstance::Init() {
 	}
 	else
 	{
-		// if config.json is not valid, GameUserSettings (Default Settings)->FSettings
+		// if config.json is not valid, GameUserSettings (Default Settings)->FWuReUserSettings
 		if(IsValid(SCMIX.Get()) && IsValid(SoundAmbient.Get()) && IsValid(SoundSFX.Get()) && IsValid(SoundMusic.Get()) && IsValid(GetWorld()))
 		{
 			CommonSettings.AmbientSound = SoundAmbient.Get()->Properties.Volume;
@@ -89,8 +90,8 @@ void UWuReGameInstance::Init() {
 		}
 		UDLSSLibrary::SetDLSSMode(GetWorld(), static_cast<UDLSSMode>(DLSSSettings.ModeDLSS));
 		UNISLibrary::SetNISMode(static_cast<UNISMode>(DLSSSettings.ModeNIS));
-		UStreamlineLibraryDLSSG::SetDLSSGMode(static_cast<UStreamlineDLSSGMode>(DLSSSettings.ModeFG));
-		UStreamlineLibraryReflex::SetReflexMode(static_cast<UStreamlineReflexMode>(DLSSSettings.ModeReflex));
+		UStreamlineLibraryDLSSG::SetDLSSGMode(static_cast<EStreamlineDLSSGMode>(DLSSSettings.ModeFG));
+		UStreamlineLibraryReflex::SetReflexMode(static_cast<EStreamlineReflexMode>(DLSSSettings.ModeReflex));
 	}
 	else
 	{
@@ -113,27 +114,27 @@ void UWuReGameInstance::Init() {
 }
 
 
-void UWuReGameInstance::SaveSettingsToJson()
+void UDEPRECATED_UWuReGameInstance::SaveSettingsToJson()
 {
 	FString OutputJson;
-	FJsonObjectConverter::UStructToJsonObjectString<FSettings>(CommonSettings, OutputJson);
+	FJsonObjectConverter::UStructToJsonObjectString<FWuReUserSettings>(CommonSettings, OutputJson);
 	GEngine->IsEditor()
 		? FFileHelper::SaveStringToFile(*OutputJson, *(FPaths::ProjectDir() + TEXT("config.json")))
 		: FFileHelper::SaveStringToFile(*OutputJson, *(FPaths::RootDir() + TEXT("config.json")));
 }
 
-bool UWuReGameInstance::GetSettingsFromJson()
+bool UDEPRECATED_UWuReGameInstance::GetSettingsFromJson()
 {
 	FString InputJson;
 	
 	const bool IsFileLoadSucceeded = GEngine->IsEditor()
 		? FFileHelper::LoadFileToString(InputJson, *(FPaths::ProjectDir() + TEXT("config.json")))
 		: FFileHelper::LoadFileToString(InputJson, *(FPaths::RootDir() + TEXT("config.json")));
-	const bool IsConvertSucceeded = FJsonObjectConverter::JsonObjectStringToUStruct<FSettings>(*InputJson, &CommonSettings);
+	const bool IsConvertSucceeded = FJsonObjectConverter::JsonObjectStringToUStruct<FWuReUserSettings>(*InputJson, &CommonSettings);
 	if(!IsFileLoadSucceeded && !IsConvertSucceeded)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("CommonSettings LOAD FAILED"));
-		// Game User Settings To FSettings
+		// Game User Settings To FWuReUserSettings
 		const TWeakObjectPtr<UGameUserSettings> UserSettings = UGameUserSettings::GetGameUserSettings();
 		CommonSettings.ScreenMode = UserSettings.Get()->GetFullscreenMode();
 		CommonSettings.ScreenResX = UserSettings.Get()->GetScreenResolution().X;
@@ -149,7 +150,7 @@ bool UWuReGameInstance::GetSettingsFromJson()
 	return true;
 }
 
-void UWuReGameInstance::SaveDLSSSettingsToJson()
+void UDEPRECATED_UWuReGameInstance::SaveDLSSSettingsToJson()
 {
 	FString OutputJson;
 	FJsonObjectConverter::UStructToJsonObjectString<FDLSSUserSettings>(DLSSSettings, OutputJson);
@@ -158,7 +159,7 @@ void UWuReGameInstance::SaveDLSSSettingsToJson()
 		: FFileHelper::SaveStringToFile(*OutputJson, *(FPaths::RootDir() + TEXT("dlss.json")));
 }
 
-bool UWuReGameInstance::GetDLSSSettingsFromJson()
+bool UDEPRECATED_UWuReGameInstance::GetDLSSSettingsFromJson()
 {
 	FString InputJson;
 	
@@ -175,7 +176,7 @@ bool UWuReGameInstance::GetDLSSSettingsFromJson()
 	return true;
 }
 
-void UWuReGameInstance::SetMousePositionByGamepad(const float ValX, const float ValY, float Sensitivity)
+void UDEPRECATED_UWuReGameInstance::SetMousePositionByGamepad(const float ValX, const float ValY, float Sensitivity)
 {
 	if(ValX != 0.f || ValY != 0.f)
 	{
@@ -188,26 +189,5 @@ void UWuReGameInstance::SetMousePositionByGamepad(const float ValX, const float 
 		PosX = FMath::Clamp(PosX + ValX * Sensitivity, 0, ScreenSize.X);
 		PosY = FMath::Clamp(PosY + ValY * -1.f * Sensitivity, 0, ScreenSize.Y);
 		PlayerController.Get()->SetMouseLocation(static_cast<int>(PosX), static_cast<int>(PosY));
-	}
-}
-
-void UWuReGameInstance::SetIsKorean(const bool bNewKorean, const bool bAutoUpdateWidget)
-{
-	if(CommonSettings.IsKorean !=bNewKorean)
-	{
-		CommonSettings.IsKorean = bNewKorean;
-		if(bAutoUpdateWidget)
-		{
-			TArray<UUserWidget*> ParadiseWidget;
-			UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, ParadiseWidget, UWuReUserWidget::StaticClass());
-			for(UUserWidget* Widget: ParadiseWidget)
-			{
-				UWuReUserWidget* PDWidget = Cast<UWuReUserWidget>(Widget);
-				if(IsValid(PDWidget))
-				{
-					PDWidget->UpdateLocalizedLanguage();
-				}
-			}
-		}
 	}
 }

@@ -2,43 +2,30 @@
 
 
 #include "WuReUserWidget.h"
+
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/GameInstance.h"
+#include "LocalizationSubsystem.h"
 #include "Components/TextBlock.h"
 #include "Engine/DataTable.h"
-#include "WuReWidgetComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "WuRePlayerController.h"
+
+AWuRePlayerController* UWuReUserWidget::GetPlayerController(bool& bIsValid) const
+{
+	bIsValid = IsValid(PlayerController);
+	return PlayerController;
+}
 
 void UWuReUserWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	LocalizationSubsystem = Cast<ULocalizationSubsystem>(GetGameInstance()->GetSubsystem<ULocalizationSubsystem>());
 
-	if(AWuRePlayerController* PlayerCtlLocal = GetPlayerController())
-	{
-		if(!PlayerCtlLocal->Widgets.Contains(this) && bAutoAddWidgetToPlayerController)
-		{
-			PlayerCtlLocal->Widgets.AddUnique(this);
-		}
-	}
-	
-	// Hover 1st button
-	if(WidgetComponents.IsValidIndex(0))
-	{
-		FocusOnHoveredElement(WidgetComponents[0]);
-	}
-	
-	// Get & Update Localized Text
-	if(!IsValid(UILocalizationTable.Get()))
-	{
-		UILocalizationTable = GetWuReGameInstance()->GlobalUILocalizationTable.Get();
-	}
-	if(!IsValid(DialogueLocalizationTable.Get()))
-	{
-		DialogueLocalizationTable = GetWuReGameInstance()->GlobalDialogueLocalizationTable.Get();
-	}
-
-	if(IsValid(DialogueLocalizationTable.Get()) && IsValid(UILocalizationTable.Get()))
-	{
-		UpdateLocalizedLanguage();
-	}
+	PlayerController = Cast<AWuRePlayerController>(GetOwningPlayer());
+	PlayerController->OnInputMethodChangedNative.AddDynamic(this, &UWuReUserWidget::HandleInputMethodChanged);
 
 	OnBeginPlayDone.Broadcast();
 }
@@ -46,146 +33,119 @@ void UWuReUserWidget::NativeConstruct()
 void UWuReUserWidget::NativeDestruct()
 {
 	Super::NativeDestruct();
-
-	if(AWuRePlayerController* PlayerCtlLocal = GetPlayerController())
-	{
-		if(PlayerCtlLocal->Widgets.Contains(this)) {
-			PlayerCtlLocal->Widgets.Remove(this);
-		}
-	}
 }
 
-void UWuReUserWidget::FocusOnHoveredElement(UWuReWidgetComponent* HoveredElement)
+void UWuReUserWidget::NativeOnActivated()
 {
-	if(IsValid(HoveredElement))
+	Super::NativeOnActivated();
+
+	bool bIsValid = false;
+	AWuRePlayerController* PC = GetPlayerController(bIsValid);
+	if (!bIsValid || !PC) return;
+
+	if (const ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
 	{
-		if(WidgetComponents.Contains(HoveredElement))
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+			LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
-			for(UWuReWidgetComponent* WidgetComp: WidgetComponents)
+			if (WidgetInputMappingContext)
 			{
-				WidgetComp->SetElementHovered(WidgetComp == HoveredElement);
+				Subsystem->AddMappingContext(WidgetInputMappingContext, /*Priority=*/1);
 			}
-			SetElementTargetIdx(WidgetComponents.Find(HoveredElement));
 		}
 	}
-}
 
-bool UWuReUserWidget::UpdateTextBlockLanguageUI(UTextBlock* TextBlock,
-	const FString Code, const FText FormatText)
-{
-	if(IsValid(TextBlock))
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PC->InputComponent))
 	{
-		if(FormatText.IsEmpty())
+		if (IsValid(IA_Confirm))
 		{
-			// TextBlock->SetText(UPDLocalization::GetLocalizedUserInterfaceText(Code, bIsKorean));
-			TextBlock->SetText(GetLocalizedUIContext(FName(Code)));
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Confirm, ETriggerEvent::Completed,
+				                this, &UWuReUserWidget::HandleConfirmCompleted).GetHandle());
 		}
-		else
+		if (IsValid(IA_Up))
 		{
-			// TextBlock->SetText(FText::Format(FTextFormat(FormatText), UPDLocalization::GetLocalizedUserInterfaceText(Code, bIsKorean)));
-			TextBlock->SetText(FText::Format(FTextFormat(FormatText), GetLocalizedUIContext(FName(Code))));
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Up, ETriggerEvent::Completed,
+				                this, &UWuReUserWidget::HandleUpKeyCompleted).GetHandle());
 		}
-		return true;
-	}
-	return false;
-}
-
-FWuReLocalizationStruct UWuReUserWidget::GetLocalizedDialogueStruct(const FName RowName)
-{
-	static const FString ContextString(TEXT("GENERAL"));
-	if(IsValid(DialogueLocalizationTable.Get()))
-	{
-		if(FWuReLocalizationStruct* Row = DialogueLocalizationTable.Get()->FindRow<FWuReLocalizationStruct>(RowName, ContextString))
+		if (IsValid(IA_Down))
 		{
-			return *Row;
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Down, ETriggerEvent::Completed,
+								this, &UWuReUserWidget::HandleDownKeyCompleted).GetHandle());
 		}
-	}
-	return FWuReLocalizationStruct(FText::FromString(RowName.ToString()), FText::FromString(RowName.ToString()));
-}
-
-FWuReLocalizationStruct UWuReUserWidget::GetLocalizedUIContextStruct(const FName RowName)
-{
-	FString ContextString(TEXT("GENERAL"));
-	if(IsValid(UILocalizationTable.Get()))
-	{
-		if(FWuReLocalizationStruct* Row = UILocalizationTable.Get()->FindRow<FWuReLocalizationStruct>(RowName, ContextString))
+		if (IsValid(IA_Left))
 		{
-			return *Row;
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Left, ETriggerEvent::Completed,
+								this, &UWuReUserWidget::HandleLeftKeyCompleted).GetHandle());
 		}
-	}
-	return FWuReLocalizationStruct(FText::FromName(RowName), FText::FromName(RowName));
-}
-
-void UWuReUserWidget::SetWidgetComponentsToArray(TArray<UWuReWidgetComponent*> WidgetComps)
-{
-	if(WidgetComponents.IsValidIndex(0))
-	{
-		WidgetComponents = WidgetComps;
-	}
-}
-
-TArray<UWuReWidgetComponent*>& UWuReUserWidget::GetWidgetComponentArray()
-{
-	return WidgetComponents;
-}
-
-void UWuReUserWidget::ElementHoverCtl(const bool bIsUp)
-{
-	// Get Index of PDButton to Hover
-	if (bIsUp && GetElementTargetIdx() == 0)
-	{
-		// If IsUp is true and FocusedBtnTarget is 0,
-		// reset FocusedBtnTarget to the maximum index.
-		SetElementTargetIdx(WidgetComponents.Num() - 1);
-	}
-	else if (!bIsUp && GetElementTargetIdx() == WidgetComponents.Num() - 1)
-	{
-		// If IsUp is false and FocusedBtnTarget is already at the maximum index,
-		// reset FocusedBtnTarget to 0.
-		SetElementTargetIdx(0);
-	}
-	else
-	{
-		SetElementTargetIdx(FMath::Clamp(bIsUp ? GetElementTargetIdx() - 1 : GetElementTargetIdx() + 1, 0, WidgetComponents.Num() - 1));
-	}
-	// Set Ho
-	for(UWuReWidgetComponent* Element: WidgetComponents)
-	{
-		if(IsValid(Element))
+		if (IsValid(IA_Right))
 		{
-			Element->SetElementHovered(Element == WidgetComponents[GetElementTargetIdx()]);
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Right, ETriggerEvent::Completed,
+								this, &UWuReUserWidget::HandleRightKeyCompleted).GetHandle());
 		}
 	}
 }
 
-void UWuReUserWidget::SetElementTargetIdx(const int Index)
+void UWuReUserWidget::NativeOnDeactivated()
 {
-	FocusedBtnTarget = Index;
+	bool bIsValid = false;
+	if (AWuRePlayerController* PC = GetPlayerController(bIsValid); bIsValid && PC)
+	{
+		if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PC->InputComponent))
+		{
+			for (const uint32 Handle : EnhancedInputBindingHandles)
+			{
+				EIC->RemoveBindingByHandle(Handle);
+			}
+		}
+		EnhancedInputBindingHandles.Reset();
+
+		if (const ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+				LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				if (WidgetInputMappingContext)
+				{
+					Subsystem->RemoveMappingContext(WidgetInputMappingContext);
+				}
+			}
+		}
+	}
+	Super::NativeOnDeactivated();
 }
 
-int& UWuReUserWidget::GetElementTargetIdx()
+void UWuReUserWidget::KeyboardActivated_Implementation()
 {
-	return FocusedBtnTarget;
 }
 
-void UWuReUserWidget::UpdateLocalizedLanguage_Implementation()
+void UWuReUserWidget::GamepadActivated_Implementation()
 {
-	
 }
 
-UMaterialInstanceDynamic* UWuReUserWidget::CreateGamepadIcon(const EDualSenseKey GamepadKey, const bool AddBackgroundTexture,
+UMaterialInstanceDynamic* UWuReUserWidget::CreateGamepadIcon(const EDualSenseKey GamepadKey,
+                                                             const bool AddBackgroundTexture,
                                                              const bool BackgroundTextureOnly, const FColor Color)
 {
-	if(IsValid(DualSenseBtnMaterial.Get()))
+	if (IsValid(DualSenseBtnMaterial.Get()))
 	{
-		const TWeakObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic = UMaterialInstanceDynamic::Create(DualSenseBtnMaterial.Get(), nullptr);
-		if(MaterialInstanceDynamic.IsValid())
+		const TWeakObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic = UMaterialInstanceDynamic::Create(
+			DualSenseBtnMaterial.Get(), nullptr);
+		if (MaterialInstanceDynamic.IsValid())
 		{
-			if(SetGamepadIcon(MaterialInstanceDynamic.Get(), GamepadKey))
+			if (SetGamepadIcon(MaterialInstanceDynamic.Get(), GamepadKey))
 			{
-				MaterialInstanceDynamic.Get()->SetScalarParameterValue(FName("AddBackgroundTex"), AddBackgroundTexture ? 1.f : 0.f);
-				MaterialInstanceDynamic.Get()->SetScalarParameterValue(FName("BackgroundTexOnly"), BackgroundTextureOnly ? 1.f : 0.f);
-				MaterialInstanceDynamic.Get()->SetVectorParameterValue(FName("Color"), FVector(Color.R/255.f, Color.G/255.f, Color.B/255.f));
+				MaterialInstanceDynamic.Get()->SetScalarParameterValue(FName("AddBackgroundTex"),
+				                                                       AddBackgroundTexture ? 1.f : 0.f);
+				MaterialInstanceDynamic.Get()->SetScalarParameterValue(FName("BackgroundTexOnly"),
+				                                                       BackgroundTextureOnly ? 1.f : 0.f);
+				MaterialInstanceDynamic.Get()->SetVectorParameterValue(FName("Color"),
+				                                                       FVector(Color.R / 255.f, Color.G / 255.f,
+				                                                               Color.B / 255.f));
 				return MaterialInstanceDynamic.Get();
 			}
 		}
@@ -194,39 +154,55 @@ UMaterialInstanceDynamic* UWuReUserWidget::CreateGamepadIcon(const EDualSenseKey
 }
 
 void UWuReUserWidget::SetGamepadIconToMaterial(UMaterialInstanceDynamic* Material, const EDualSenseKey GamepadKey,
-	const bool AddBackgroundTexture, const bool BackgroundTextureOnly, const FColor Color)
+                                               const bool AddBackgroundTexture, const bool BackgroundTextureOnly,
+                                               const FColor Color)
 {
-	if(Material)
+	if (Material)
 	{
 		Material->SetScalarParameterValue(FName("AddBackgroundTex"), AddBackgroundTexture ? 1.f : 0.f);
 		Material->SetScalarParameterValue(FName("BackgroundTexOnly"), BackgroundTextureOnly ? 1.f : 0.f);
-		Material->SetVectorParameterValue(FName("Color"), FVector(Color.R/255.f, Color.G/255.f, Color.B/255.f));
+		Material->SetVectorParameterValue(FName("Color"), FVector(Color.R / 255.f, Color.G / 255.f, Color.B / 255.f));
 		SetGamepadIcon(Material, GamepadKey);
 	}
 }
 
 void UWuReUserWidget::SetMousePositionByGamepad(const float ValX, const float ValY, float Sensitivity)
 {
-	if(ValX != 0.f || ValY != 0.f)
+	if (ValX != 0.f || ValY != 0.f)
 	{
 		Sensitivity *= GetWorld()->GetDeltaSeconds(); // UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
-		
+
 		float PosX, PosY;
 		FVector2D ScreenSize;
 		GEngine->GameViewport->GetViewportSize(ScreenSize);
 		UGameplayStatics::GetPlayerController(this, 0)->GetMousePosition(PosX, PosY);
 		PosX = FMath::Clamp(PosX + ValX * Sensitivity, 0, ScreenSize.X);
 		PosY = FMath::Clamp(PosY + ValY * -1.f * Sensitivity, 0, ScreenSize.Y);
-		UGameplayStatics::GetPlayerController(this, 0)->SetMouseLocation(static_cast<int>(PosX), static_cast<int>(PosY));
+		UGameplayStatics::GetPlayerController(this, 0)->
+			SetMouseLocation(static_cast<int>(PosX), static_cast<int>(PosY));
 	}
+}
+
+ULocalizationSubsystem* UWuReUserWidget::GetLocalizationSubsystem(bool& bIsValid)
+{
+	if (IsValid(LocalizationSubsystem))
+	{
+		bIsValid = true;
+		return LocalizationSubsystem;
+	}
+
+	LocalizationSubsystem = Cast<ULocalizationSubsystem>(GetGameInstance()->GetSubsystem<ULocalizationSubsystem>());
+	bIsValid = IsValid(LocalizationSubsystem);
+
+	return LocalizationSubsystem;
 }
 
 bool UWuReUserWidget::SetGamepadIcon(UMaterialInstanceDynamic* MatParam, const EDualSenseKey GamepadEnum)
 {
-	if(MatParam)
+	if (MatParam)
 	{
 		FVector2D UVMapOffset;
-		switch(GamepadEnum)
+		switch (GamepadEnum)
 		{
 		case EDualSenseKey::FaceKeyUp:
 			UVMapOffset.X = 0.f;
@@ -384,6 +360,8 @@ bool UWuReUserWidget::SetGamepadIcon(UMaterialInstanceDynamic* MatParam, const E
 			UVMapOffset.X = 3.f / 7.f;
 			UVMapOffset.Y = 5.f / 6.f;
 			break;
+		default:
+			UVMapOffset = FVector2D();
 		}
 		MatParam->SetScalarParameterValue(TEXT("uTile"), UVMapOffset.X);
 		MatParam->SetScalarParameterValue(TEXT("vTile"), UVMapOffset.Y);
@@ -392,63 +370,14 @@ bool UWuReUserWidget::SetGamepadIcon(UMaterialInstanceDynamic* MatParam, const E
 	return false;
 }
 
-// BlueprintNativeEvents
-void UWuReUserWidget::LeftStick(const float ValueX, const float ValueY, const EJoystickHandler JoystickHandleOptions)
+void UWuReUserWidget::HandleInputMethodChanged(ECommonInputType InInputType)
 {
-	if(IsValid(ClickSound.Get()))
+	if (InInputType == ECommonInputType::Gamepad)
 	{
-		PlaySound(ClickSound.Get());
+		GamepadActivated_Implementation();
 	}
-	switch(JoystickHandleOptions)
+	else if (InInputType == ECommonInputType::MouseAndKeyboard)
 	{
-	case EJoystickHandler::UD:
-		if(ValueX <= 0.1f && ValueX >= -0.1f)	// Prevent Left-Right
-		{
-			ElementHoverCtl(ValueY > 0);
-		}
-		break;
-	case EJoystickHandler::LR:
-		if(ValueY <= 0.1f && ValueY >= -0.1f)	// Prevent Up-Down
-		{
-			ElementHoverCtl(ValueX < 0);
-		}
-		break;
-	case EJoystickHandler::UDLR:
-		break;
-	}
-}
-
-void UWuReUserWidget::CheckButtonOnStarted()
-{
-	for(int i = 0; i <= WidgetComponents.Num(); i++)
-	{
-		if(WidgetComponents.IsValidIndex(i))
-		{
-			WidgetComponents[i]->SetElementClicked(i == GetElementTargetIdx());
-		}
-	}
-}
-
-void UWuReUserWidget::KeyboardActivated()
-{
-}
-
-void UWuReUserWidget::GamepadActivated()
-{
-}
-
-void UWuReUserWidget::CheckButtonOnCompleted()
-{
-	if(IsValid(ClickSound.Get()))
-	{
-		PlaySound(ClickSound.Get());
-	}
-}
-
-void UWuReUserWidget::BackButtonOnCompleted()
-{
-	if(IsValid(ClickSound.Get()))
-	{
-		PlaySound(ClickSound.Get());
+		KeyboardActivated_Implementation();
 	}
 }

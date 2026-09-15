@@ -6,7 +6,7 @@
 #include "Engine/DataTable.h"
 #include "WuReLocalizationStruct.generated.h"
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, DisplayName="WU:RE Localization Struct")
 struct FWuReLocalizationStruct : public FTableRowBase
 {
 	GENERATED_BODY()

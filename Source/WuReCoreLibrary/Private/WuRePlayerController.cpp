@@ -4,7 +4,7 @@
 #include "CommonInputSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "WuReGameInstance.h"
+#include "WuReRootWidget.h"
 #include "WuReUserWidget.h"
 
 void AWuRePlayerController::BeginPlay()
@@ -13,38 +13,57 @@ void AWuRePlayerController::BeginPlay()
 	SetTickableWhenPaused(true);
 	if (UCommonInputSubsystem* CommonInputSubsystemLocal = UCommonInputSubsystem::Get(GetLocalPlayer()))
 	{
-		CommonInputSubsystemLocal->OnInputMethodChangedNative.AddUObject(this, &AWuRePlayerController::SendInputMethodToWidgets);
+		CommonInputSubsystemLocal->OnInputMethodChangedNative.AddUObject(
+			this, &AWuRePlayerController::BroadcastOnInputMethodChanged);
 	}
-	
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+
+	if (IsValid(RootWidgetStaticClass))
 	{
-		Subsystem->AddMappingContext(InputMappingContext.Get(), 0);
+		RootWidget = CreateWidget<UWuReRootWidget>(this, RootWidgetStaticClass);
+		RootWidget->AddToViewport();
 	}
+
+	if (IsValid(EscapeMenuWidgetStaticClass))
+	{
+		EscapeMenuWidget = CreateWidget<UWuReUserWidget>(this, EscapeMenuWidgetStaticClass);
+	}
+
+	OnBeginPlayDone.Broadcast();
 }
 
-void AWuRePlayerController::PostInitializeComponents() {
-	Super::PostInitializeComponents();
-}
-
-void AWuRePlayerController::OnPossess(APawn* InPawn) {
-	Super::OnPossess(InPawn);
-}
-
-UWuReUserWidget* AWuRePlayerController::GetValidWidget(const bool bAdditionalConditions, const bool bIgnoreIsInViewport)
+void AWuRePlayerController::SetupInputComponent()
 {
-	for(int i = Widgets.Num()-1; i >= 0; i--)
+	Super::SetupInputComponent();
+
+	if (const ULocalPlayer* LocalPlayerLocal = GetLocalPlayer())
 	{
-		if(Widgets.IsValidIndex(i))
+		if (UEnhancedInputLocalPlayerSubsystem* SubsystemLocal =
+			LocalPlayerLocal->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
-			if(Widgets[i]->GetVisibility() == ESlateVisibility::SelfHitTestInvisible && (Widgets[i]->IsInViewport() || bIgnoreIsInViewport) && bAdditionalConditions)
+			if (InputMappingContext)
 			{
-				return Widgets[i];
+				SubsystemLocal->AddMappingContext(InputMappingContext, 0);
 			}
 		}
 	}
-	return nullptr;
+
+	if (UEnhancedInputComponent* EnhancedInputCompLocal = Cast<UEnhancedInputComponent>(InputComponent))
+	{
+		EnhancedInputCompLocal->BindAction(IA_Escape, ETriggerEvent::Completed, this,
+										   &AWuRePlayerController::ToggleEscMenu);
+	}
 }
+
+void AWuRePlayerController::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+}
+
+void AWuRePlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+}
+
 
 bool AWuRePlayerController::IsLocationInViewport(const FVector& Location)
 {
@@ -55,113 +74,45 @@ bool AWuRePlayerController::IsLocationInViewport(const FVector& Location)
 		int32 ViewportSizeX, ViewportSizeY;
 		GetViewportSize(ViewportSizeX, ViewportSizeY);
 
-		return ScreenPosition.X > 0 && ScreenPosition.X < ViewportSizeX && ScreenPosition.Y > 0 && ScreenPosition.Y < ViewportSizeY;
+		return ScreenPosition.X > 0 && ScreenPosition.X < ViewportSizeX && ScreenPosition.Y > 0 && ScreenPosition.Y <
+			ViewportSizeY;
 	}
 
 	return false;
 }
 
-void AWuRePlayerController::SendInputMethodToWidgets(const ECommonInputType InputEnum)
+UWuReRootWidget* AWuRePlayerController::GetRootWidget()
 {
-	CurrentInputType = InputEnum;
-	switch(InputEnum)
+	return RootWidget;
+}
+
+void AWuRePlayerController::GetAllWuReWidgetsInRoot(TArray<UWuReUserWidget*>& OutWidgets)
+{
+	TArray<UCommonActivatableWidget*> WidgetsLocal = RootWidget->GetWidgetStack()->GetWidgetList();
+	for (UCommonActivatableWidget* Widget : WidgetsLocal)
 	{
-	case ECommonInputType::MouseAndKeyboard:
-		for(UWuReUserWidget* Element: Widgets)
+		if (UWuReUserWidget* WuReWidget = Cast<UWuReUserWidget>(Widget))
 		{
-			if(IsValid(Element))
-			{
-				Element->KeyboardActivated();
-			}
+			OutWidgets.Add(WuReWidget);
 		}
-		break;
-	case ECommonInputType::Gamepad:
-		for(UWuReUserWidget* Element: Widgets)
-		{
-			if(IsValid(Element))
-			{
-				Element->GamepadActivated();
-			}
-		}
-		break;
-	default:
-		break;
 	}
 }
 
-void AWuRePlayerController::SetupInputComponent()
+UWuReUserWidget* AWuRePlayerController::GetActivatedWuReWidget()
 {
-	Super::SetupInputComponent();
-	if (UEnhancedInputComponent* EnhancedInputCompLocal = Cast<UEnhancedInputComponent>(InputComponent))
-	{
-		EnhancedInputCompLocal->BindAction(InputActionEscapeKey.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::ToggleEscMenu);
-		
-		// Button Focusing by D-Pad or Left Analogue Stick
-		EnhancedInputCompLocal->BindAction(InputActionLeftStick.Get(), ETriggerEvent::Started, this, &AWuRePlayerController::DirectionKey);
-		EnhancedInputCompLocal->BindAction(InputActionDPadLeft.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::DPadLeft);
-		EnhancedInputCompLocal->BindAction(InputActionDPadUp.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::DPadUp);
-		EnhancedInputCompLocal->BindAction(InputActionDPadRight.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::DPadRight);
-		EnhancedInputCompLocal->BindAction(InputActionDPadDown.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::DPadDown);
-		
-		// Executing Button by clicking A key
-		EnhancedInputCompLocal->BindAction(InputActionGamepadCheck.Get(), ETriggerEvent::Started, this, &AWuRePlayerController::CheckBtnStarted);
-		EnhancedInputCompLocal->BindAction(InputActionGamepadCheck.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::CheckBtnCompleted);
-	
-		// Executing Button by clicking Back key
-		EnhancedInputCompLocal->BindAction(InputActionGamepadBack.Get(), ETriggerEvent::Completed, this, &AWuRePlayerController::BackBtnCompleted);
-	}
+	return Cast<UWuReUserWidget>(RootWidget->GetWidgetStack()->GetActiveWidget());
 }
 
 void AWuRePlayerController::ToggleEscMenu()
 {
-	
+	if (IsValid(RootWidget))
+	{
+		RootWidget->ToggleEscMenu();
+	}
 }
 
-// Gamepad LStick
-void AWuRePlayerController::DirectionKey(const FInputActionValue& Value)
+void AWuRePlayerController::BroadcastOnInputMethodChanged(ECommonInputType InInputType)
 {
-	GetValidWidget(true, true)->LeftStick(
-		Value.Get<FVector2D>().X,
-		CurrentInputType == ECommonInputType::Gamepad
-			? Value.Get<FVector2D>().Y * -1.f
-			: Value.Get<FVector2d>().Y,
-		EJoystickHandler::UD);
-}
-
-// Gamepad D-Pad
-void AWuRePlayerController::DPadLeft(const FInputActionValue& Value)
-{
-	GetValidWidget(true, true)->LeftStick(-1.f, 0.f, EJoystickHandler::UD);
-}
-
-// Gamepad D-Pad
-void AWuRePlayerController::DPadUp(const FInputActionValue& Value)
-{
-	GetValidWidget(true, true)->LeftStick(0.f, 1.f, EJoystickHandler::UD);
-}
-
-void AWuRePlayerController::DPadRight(const FInputActionValue& Value)
-{
-	GetValidWidget(true, true)->LeftStick(1.f, 0.f, EJoystickHandler::UD);
-}
-
-void AWuRePlayerController::DPadDown(const FInputActionValue& Value)
-{
-	GetValidWidget(true, true)->LeftStick(0.f, -1.f, EJoystickHandler::UD);
-}
-
-// Gamepad Face Button Bottom
-void AWuRePlayerController::CheckBtnStarted(const FInputActionValue& Value)			// On Hovered - EnhancedInput Started
-{
-	GetValidWidget(true, true)->CheckButtonOnStarted();
-}
-
-void AWuRePlayerController::CheckBtnCompleted(const FInputActionValue& Value)		// On Clicked - EnhancedInput Completed
-{
-	GetValidWidget(true, true)->CheckButtonOnCompleted();
-}
-
-void AWuRePlayerController::BackBtnCompleted(const FInputActionValue& Value)
-{
-	GetValidWidget(true, true)->BackButtonOnCompleted();
+	CurrentInputType = InInputType;
+	OnInputMethodChangedNative.Broadcast(InInputType);
 }

@@ -14,7 +14,7 @@
  */
 
 USTRUCT(Atomic, BlueprintType)
-struct FSettings
+struct FWuReUserSettings
 {
 	GENERATED_BODY()
 public:
@@ -55,7 +55,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Common Settings")
 	float MouseSensitivity;
 
-	FSettings()
+	FWuReUserSettings()
 	{
 		IsInitLoad = true;
 		IsKorean = true;
@@ -115,8 +115,8 @@ public:
 
 class UDataTable;
 
-UCLASS(DisplayName="WU:RE Game Instance")
-class WURECORELIBRARY_API UWuReGameInstance : public UGameInstance {
+UCLASS(DisplayName="WU:RE Game Instance", Deprecated)
+class WURECORELIBRARY_API UDEPRECATED_UWuReGameInstance : public UGameInstance {
 	GENERATED_BODY()
 
 public:
@@ -125,18 +125,7 @@ public:
 	FString SteamAppId = "480";	// const -> constexpr
 	
 	// CSteamID MyID;
-	UWuReGameInstance();
-
-	// Language Settings
-	UFUNCTION(BlueprintSetter, Category="Localization")
-	void SetIsKorean(const bool bNewKorean, const bool bAutoUpdateWidget);
-	
-	UFUNCTION(BlueprintGetter, Category="Localization")
-	bool GetIsKorean() const
-	{
-		return CommonSettings.IsKorean;
-		// return bIsKorean;
-	}
+	UDEPRECATED_UWuReGameInstance();
 
 	UPROPERTY(EditAnywhere, Category="Localization")
 	TObjectPtr<UDataTable> GlobalUILocalizationTable;
@@ -145,7 +134,7 @@ public:
 
 	// Common Settings
 	UFUNCTION(BlueprintGetter, Category="Core|Settings IO")
-	FSettings& GetCommonSettings()
+	FWuReUserSettings& GetCommonSettings()
 	{
 		return CommonSettings;
 	}
@@ -169,7 +158,7 @@ protected:
 	virtual void Init() override;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Core|Settings IO")
-	FSettings CommonSettings;
+	FWuReUserSettings CommonSettings;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Core|Settings IO")
 	FDLSSUserSettings DLSSSettings;
 
