@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "WuReCoreLibrary.h"
 #include "CommonActivatableWidget.h"
 #include "CommonInputTypeEnum.h"
 #include "WuReTypes.h"
@@ -28,6 +29,10 @@ class WURECORELIBRARY_API UWuReUserWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+	
+	void SetDesiredInputMode(const EInputMode InInputMode);
+	
 	UPROPERTY(EditAnywhere, Category="WU:RE Widget|Sound")
 	TObjectPtr<USoundBase> ClickSound;
 
@@ -53,17 +58,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category="WU:RE Widget|Design", DisplayName="Set Gamepad Icon")
 	void SetGamepadIconToMaterial(UMaterialInstanceDynamic* Material, const EDualSenseKey GamepadKey,
 	                              const bool AddBackgroundTexture, const bool BackgroundTextureOnly,
-	                              const FColor Color);
+	                              const FColor Color = FColor(255, 255, 255));
 
 	UFUNCTION(BlueprintCallable, Category="WU:RE Widget|Control")
 	void SetMousePositionByGamepad(const float ValX, const float ValY, float Sensitivity);
 
 	UFUNCTION(BlueprintPure, Category="WU:RE Widget|References")
 	ULocalizationSubsystem* GetLocalizationSubsystem(bool& bIsValid);
-	
+
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Control")
 	bool bIsStaticWidget = false;
-	
+
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleBackTriggered(const FInputActionValue& Value);
 
@@ -73,12 +78,19 @@ protected:
 
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
+	
+	UFUNCTION(BlueprintCallable, Category="WU:RE Widget|Input")
+	UWidget* GetFocusedWidget();
 
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
 	TObjectPtr<UInputMappingContext> WidgetInputMappingContext;
 
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
 	TObjectPtr<UInputAction> IA_Confirm;
+	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
+	TObjectPtr<UInputAction> IA_InteractionKey;
+	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
+	TObjectPtr<UInputAction> IA_Back;
 
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
 	TObjectPtr<UInputAction> IA_Up;
@@ -89,10 +101,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
 	TObjectPtr<UInputAction> IA_Right;
 	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
+	TObjectPtr<UInputAction> IA_LeftJoystick;
+	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Input")
 	TObjectPtr<UInputAction> IA_RightJoystick;
-	
+
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleConfirmCompleted(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleBackCompleted(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleLeftFaceKeyStarted(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleLeftFaceKeyTriggered(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleLeftFaceKeyCompleted(const FInputActionValue& Value);
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleUpKeyCompleted(const FInputActionValue& Value);
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
@@ -102,19 +124,26 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleRightKeyCompleted(const FInputActionValue& Value);
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleLeftJoystickStarted(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleLeftJoystickTriggered(const FInputActionValue& Value);
 	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
+	void HandleRightJoystickStarted(const FInputActionValue& Value);
+	UFUNCTION(BlueprintImplementableEvent, Category="WU:RE Widget|Input")
 	void HandleRightJoystickTriggered(const FInputActionValue& Value);
-	
+
 	UPROPERTY()
 	TObjectPtr<ULocalizationSubsystem> LocalizationSubsystem;
 
 	UPROPERTY(BlueprintAssignable, Category="WU:RE Widget|Delegates")
 	FOnBeginPlayDone OnBeginPlayDone;
+	
+	UPROPERTY(BlueprintReadOnly, Category="WU:RE Widget|Input")
+	ECommonInputType InputType = ECommonInputType::MouseAndKeyboard;
 
 private:
 	TArray<uint32> EnhancedInputBindingHandles;
-	
+
 	static bool SetGamepadIcon(UMaterialInstanceDynamic* MatParam, const EDualSenseKey GamepadEnum);
 
 	UPROPERTY()
@@ -122,4 +151,6 @@ private:
 
 	UFUNCTION()
 	void HandleInputMethodChanged(ECommonInputType InInputType);
+	
+	EInputMode InputMode = EInputMode::Default;
 };

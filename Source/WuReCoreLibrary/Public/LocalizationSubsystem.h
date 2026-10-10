@@ -12,7 +12,7 @@
 /**
  * 
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, DisplayName="WU:RE Localization Subsystem")
 class WURECORELIBRARY_API ULocalizationSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Localization")
 	FText GetLocalizedText(const FString& InCode, const ELocalizationType Type) const;
 	
+	UFUNCTION(BlueprintPure, Category="Localization")
+	FWuReLocalizationStruct GetLocalizedContextStruct(const FName RowName, const ELocalizationType Type) const;
+	
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category="Localization")
 	void K2Node_OnInitializationDone();
@@ -57,8 +60,6 @@ private:
 	TObjectPtr<UDataTable> GlobalUILocalizationTable;
 	UPROPERTY(EditAnywhere, Category="Localization", meta=(AllowPrivateAccess=true), DisplayName="Localization Table for Dialogue")
 	TObjectPtr<UDataTable> GlobalDialogueLocalizationTable;
-	
-	FWuReLocalizationStruct GetLocalizedContextStruct(const FName RowName, const ELocalizationType Type) const;
 	
 	ESupportedLanguage CurrentLanguage = ESupportedLanguage::EN_GB;
 };

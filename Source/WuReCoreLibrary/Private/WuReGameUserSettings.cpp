@@ -10,11 +10,11 @@ void UWuReGameUserSettings::ResetToDefaultValue()
  */
 	DLSSRenderScale = 1.f;
 	bDLSSRayTracing = true;
-	DLSSAntiAliasing = 0;
-	DLSSModeDLSS = 0;
-	DLSSModeNIS = 0;
-	DLSSModeFG = 0;
-	DLSSModeReflex = 0;
+	DLSSAntiAliasing = EBuiltInAAMode::Off;
+	DLSSModeDLSS = UWuReDLSSMode::Off;
+	DLSSModeNIS = UWuReNISMode::Off;
+	DLSSModeFG = EWuReStreamlineDLSSGMode::Off;
+	DLSSModeReflex = EWuReStreamlineReflexMode::Off;
 	
 /**
  * 일반 설정 값

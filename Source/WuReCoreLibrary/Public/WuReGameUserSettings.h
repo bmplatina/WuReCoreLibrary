@@ -29,20 +29,22 @@ public:
 	/**
 	 * DLSS 설정 값
 	 */
-	UPROPERTY(config)
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
 	float DLSSRenderScale;
-	UPROPERTY(config)
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
 	bool bDLSSRayTracing;
-	UPROPERTY(config)
-	uint8 DLSSAntiAliasing;
-	UPROPERTY(config)
-	uint8 DLSSModeDLSS;
-	UPROPERTY(config)
-	uint8 DLSSModeNIS;
-	UPROPERTY(config)
-	uint8 DLSSModeFG;
-	UPROPERTY(config)
-	uint8 DLSSModeReflex;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	EBuiltInAAMode DLSSAntiAliasing;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	UWuReDLSSMode DLSSModeDLSS;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	UWuReNISMode DLSSModeNIS;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	EWuReStreamlineDLSSGMode DLSSModeFG;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	EWuReStreamlineReflexMode DLSSModeReflex;
+	UPROPERTY(config, BlueprintReadWrite, Category="Settings|DLSS")
+	EUpscaleMode DLSSModeUpscaling = EUpscaleMode::BuiltIn;
 
 	/**
 	 * 일반 설정 값

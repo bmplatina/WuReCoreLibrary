@@ -19,7 +19,7 @@ public:
 	FText ContextEnGb;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Context")
-	TObjectPtr<USoundBase> Voiceline;
+	TSoftObjectPtr<USoundBase> Voiceline;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Context")
 	float ManualDuration;

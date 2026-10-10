@@ -19,26 +19,15 @@ UWuReUserWidget* UWuReRootWidget::CreateAndAddWidgetToViewport(const TSubclassOf
 		return nullptr;
 	}
 
-	if (APlayerController* OwningPlayer = GetOwningPlayer())
-	{
-		if (InputMode == EInputMode::GameOnly)
-		{
-			OwningPlayer->SetInputMode(FInputModeGameOnly());
-		}
-		else if (InputMode == EInputMode::WidgetOnly)
-		{
-			OwningPlayer->SetInputMode(FInputModeUIOnly());
-		}
-		else if (InputMode == EInputMode::GameAndWidget)
-		{
-			OwningPlayer->SetInputMode(FInputModeGameAndUI());
-		}
-	}
+	// SetInputMode(InputMode);
 
-	return GameplayWidgetStack->AddWidget<UWuReUserWidget>(InWidgetClass);
+	return GameplayWidgetStack->AddWidget<UWuReUserWidget>(InWidgetClass, [InputMode](UWuReUserWidget& Widget)
+	{
+		Widget.SetDesiredInputMode(InputMode);
+	});
 }
 
-void UWuReRootWidget::RemoveWidgetFromViewport(UWuReUserWidget* InWidget, EInputMode InputMode)
+void UWuReRootWidget::RemoveWidgetFromViewport(UWuReUserWidget* InWidget)
 {
 	if (!ensure(GameplayWidgetStack))
 	{
@@ -48,21 +37,7 @@ void UWuReRootWidget::RemoveWidgetFromViewport(UWuReUserWidget* InWidget, EInput
 	if (InWidget)
 	{
 		GameplayWidgetStack->RemoveWidget(*InWidget);
-		if (APlayerController* OwningPlayer = GetOwningPlayer())
-		{
-			if (InputMode == EInputMode::GameOnly)
-			{
-				OwningPlayer->SetInputMode(FInputModeGameOnly());
-			}
-			else if (InputMode == EInputMode::WidgetOnly)
-			{
-				OwningPlayer->SetInputMode(FInputModeUIOnly());
-			}
-			else if (InputMode == EInputMode::GameAndWidget)
-			{
-				OwningPlayer->SetInputMode(FInputModeGameAndUI());
-			}
-		}
+		// SetInputMode(InputMode);
 	}
 }
 
@@ -77,7 +52,20 @@ UWuReUserWidget* UWuReRootWidget::CreateAndAddWidgetToEscapeMenuStack(const TSub
 		return nullptr;
 	}
 
-	return EscapeMenuWidgetStack->AddWidget<UWuReUserWidget>(InWidgetClass);
+	EInputMode InputMode = EInputMode::WidgetOnly;
+	
+	UWuReUserWidget* NewWidget = Cast<
+		UWuReUserWidget>(EscapeMenuWidgetStack->AddWidget<UWuReUserWidget>(InWidgetClass, [InputMode](UWuReUserWidget& Widget)
+	{
+		Widget.SetDesiredInputMode(InputMode);
+	}));
+	
+	if (IsValid(NewWidget))
+	{
+		SetGameplayActiveWidgetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	return NewWidget;
 }
 
 void UWuReRootWidget::RemoveWidgetFromEscapeMenuStack(UWuReUserWidget* InWidget)
@@ -90,6 +78,21 @@ void UWuReRootWidget::RemoveWidgetFromEscapeMenuStack(UWuReUserWidget* InWidget)
 	if (InWidget)
 	{
 		EscapeMenuWidgetStack->RemoveWidget(*InWidget);
+		if (EscapeMenuWidgetStack->GetWidgetList().Num() == 0)
+		{
+			SetGameplayActiveWidgetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+	}
+}
+
+void UWuReRootWidget::SetGameplayActiveWidgetVisibility(ESlateVisibility InVisibility)
+{
+	if (GameplayWidgetStack)
+	{
+		if (UCommonActivatableWidget* ActiveWidget = GameplayWidgetStack->GetActiveWidget())
+		{
+			ActiveWidget->SetVisibility(InVisibility);
+		}
 	}
 }
 
@@ -116,34 +119,35 @@ bool UWuReRootWidget::GetRootHasWidget(UWuReUserWidget* TestWidget)
 void UWuReRootWidget::ToggleEscMenu()
 {
 	if (!IsValid(EscapeMenuWidgetClass)) return;
-	
+
 	if (UCommonActivatableWidget* ActiveWidgetFromEscapeMenuStack = EscapeMenuWidgetStack->GetActiveWidget())
 	{
 		if (ActiveWidgetFromEscapeMenuStack->GetClass()->IsChildOf(EscapeMenuWidgetClass)) // Escape 메뉴만이 스택에 활성 상태일 때
 		{
 			EscapeMenuWidgetStack->ClearWidgets(); // 스택 flush
-			GetOwningPlayer()->SetInputMode(FInputModeGameOnly());
+			SetGameplayActiveWidgetVisibility(ESlateVisibility::SelfHitTestInvisible);
 			return;
 		}
 	}
 
-	UWuReUserWidget* ActivatedWidget = Cast<UWuReUserWidget>(GameplayWidgetStack->GetActiveWidget());
-
-	// 먼저 Esc 관련 위젯 스택에 위젯이 있으면 그거부터 지운다
-	if (EscapeMenuWidgetStack->GetWidgetList().Num() > 0)
+	if (UWuReUserWidget* ActivatedWidget = Cast<UWuReUserWidget>(GameplayWidgetStack->GetActiveWidget()))
 	{
-		Cast<UWuReUserWidget>(EscapeMenuWidgetStack->GetActiveWidget())->HandleBackTriggered(FInputActionValue());
-	}
-	else
-	{
-		if (!ActivatedWidget || ActivatedWidget->bIsStaticWidget) // 뒤로가기 기능이 없는 정적 위젯일 때
+		// 먼저 Esc 관련 위젯 스택에 위젯이 있으면 그거부터 지운다
+		if (EscapeMenuWidgetStack->GetWidgetList().Num() > 0)
 		{
-			UWuReUserWidget* EscapeMenuWidgetLocal = CreateAndAddWidgetToEscapeMenuStack(EscapeMenuWidgetClass);
-			GetOwningPlayer()->SetInputMode(FInputModeUIOnly());
+			Cast<UWuReUserWidget>(EscapeMenuWidgetStack->GetActiveWidget())->HandleBackTriggered(FInputActionValue());
 		}
 		else
 		{
-			ActivatedWidget->HandleBackTriggered(FInputActionValue());
+			if (!ActivatedWidget || ActivatedWidget->bIsStaticWidget) // 뒤로가기 기능이 없는 정적 위젯일 때
+			{
+				CreateAndAddWidgetToEscapeMenuStack(EscapeMenuWidgetClass);
+				// SetInputMode(EInputMode::GameAndWidget);
+			}
+			else
+			{
+				ActivatedWidget->HandleBackTriggered(FInputActionValue());
+			}
 		}
 	}
 }

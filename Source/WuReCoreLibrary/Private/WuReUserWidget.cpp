@@ -3,6 +3,7 @@
 
 #include "WuReUserWidget.h"
 
+#include "CommonInputSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
@@ -11,7 +12,41 @@
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "Framework/Application/SlateUser.h"
+#include "Types/ReflectionMetadata.h"
 #include "WuRePlayerController.h"
+
+TOptional<FUIInputConfig> UWuReUserWidget::GetDesiredInputConfig() const
+{
+	TOptional<FUIInputConfig> InputConfig;
+	switch (InputMode)
+	{
+	case EInputMode::GameOnly:
+		// UWidgetBlueprintLibrary::SetInputMode_GameOnly (FInputModeGameOnly, bConsumeCaptureMouseDown == true)
+		InputConfig = FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently,
+		                             EMouseLockMode::LockOnCapture, true);
+		break;
+	case EInputMode::GameAndWidget:
+		// UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx (DoNotLock, bHideCursorDuringCapture == false)
+		InputConfig = FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::CaptureDuringMouseDown,
+		                             EMouseLockMode::DoNotLock, false);
+		break;
+	case EInputMode::WidgetOnly:
+		// UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx (DoNotLock)
+		InputConfig = FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture,
+		                             EMouseLockMode::DoNotLock, false);
+		break;
+	case EInputMode::Default:
+	default:
+		return Super::GetDesiredInputConfig();
+	}
+	return InputConfig;
+}
+
+void UWuReUserWidget::SetDesiredInputMode(const EInputMode InInputMode)
+{
+	InputMode = InInputMode;
+}
 
 AWuRePlayerController* UWuReUserWidget::GetPlayerController(bool& bIsValid) const
 {
@@ -25,13 +60,37 @@ void UWuReUserWidget::NativeConstruct()
 	LocalizationSubsystem = Cast<ULocalizationSubsystem>(GetGameInstance()->GetSubsystem<ULocalizationSubsystem>());
 
 	PlayerController = Cast<AWuRePlayerController>(GetOwningPlayer());
-	PlayerController->OnInputMethodChangedNative.AddDynamic(this, &UWuReUserWidget::HandleInputMethodChanged);
+	if (IsValid(PlayerController))
+	{
+		// NativeConstruct는 Slate 재구성 등으로 같은 위젯에 여러 번 불릴 수 있어 Unique로 바인딩 (NativeDestruct에서 해제)
+		PlayerController->OnInputMethodChangedNative.AddUniqueDynamic(
+			this, &UWuReUserWidget::HandleInputMethodChanged);
+
+		HandleInputMethodChanged(PlayerController->GetCurrentInputMethod());
+	}
+	else
+	{
+		WURELOG_OBJ(Warning, this, TEXT("Owning player is not AWuRePlayerController: %s"),
+					*GetNameSafe(GetOwningPlayer()));
+	}
+	
+	if (const UCommonInputSubsystem* InputSubsystem = UCommonInputSubsystem::Get(GetOwningLocalPlayer()))
+	{
+		HandleInputMethodChanged(InputSubsystem->GetCurrentInputType());
+	}
 
 	OnBeginPlayDone.Broadcast();
+	WURELOG_OBJ(Log, this, TEXT("WuReWidget constructed"));
 }
 
 void UWuReUserWidget::NativeDestruct()
 {
+	WURELOG_OBJ(Log, this, TEXT("WuReWidget destructed"));
+	if (IsValid(PlayerController))
+	{
+		PlayerController->OnInputMethodChangedNative.RemoveDynamic(
+			this, &UWuReUserWidget::HandleInputMethodChanged);
+	}
 	Super::NativeDestruct();
 }
 
@@ -63,6 +122,12 @@ void UWuReUserWidget::NativeOnActivated()
 				EIC->BindAction(IA_Confirm, ETriggerEvent::Completed,
 				                this, &UWuReUserWidget::HandleConfirmCompleted).GetHandle());
 		}
+		if (IsValid(IA_Back))
+		{
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_Back, ETriggerEvent::Completed, 
+								this, &UWuReUserWidget::HandleBackCompleted).GetHandle());
+		}
 		if (IsValid(IA_Up))
 		{
 			EnhancedInputBindingHandles.Add(
@@ -73,19 +138,45 @@ void UWuReUserWidget::NativeOnActivated()
 		{
 			EnhancedInputBindingHandles.Add(
 				EIC->BindAction(IA_Down, ETriggerEvent::Completed,
-								this, &UWuReUserWidget::HandleDownKeyCompleted).GetHandle());
+				                this, &UWuReUserWidget::HandleDownKeyCompleted).GetHandle());
 		}
 		if (IsValid(IA_Left))
 		{
 			EnhancedInputBindingHandles.Add(
 				EIC->BindAction(IA_Left, ETriggerEvent::Completed,
-								this, &UWuReUserWidget::HandleLeftKeyCompleted).GetHandle());
+				                this, &UWuReUserWidget::HandleLeftKeyCompleted).GetHandle());
 		}
 		if (IsValid(IA_Right))
 		{
 			EnhancedInputBindingHandles.Add(
 				EIC->BindAction(IA_Right, ETriggerEvent::Completed,
-								this, &UWuReUserWidget::HandleRightKeyCompleted).GetHandle());
+				                this, &UWuReUserWidget::HandleRightKeyCompleted).GetHandle());
+		}
+		if (IsValid(IA_InteractionKey))
+		{
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_InteractionKey, ETriggerEvent::Started,
+								this, &UWuReUserWidget::HandleLeftFaceKeyStarted).GetHandle());
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_InteractionKey, ETriggerEvent::Triggered,
+				                this, &UWuReUserWidget::HandleLeftFaceKeyTriggered).GetHandle());
+			EnhancedInputBindingHandles.Add(
+				EIC->BindAction(IA_InteractionKey, ETriggerEvent::Completed,
+								this, &UWuReUserWidget::HandleLeftFaceKeyCompleted).GetHandle());
+		}
+		if (IsValid(IA_LeftJoystick))
+		{
+			EnhancedInputBindingHandles.Add(EIC->BindAction(IA_LeftJoystick, ETriggerEvent::Started,
+								this, &UWuReUserWidget::HandleLeftJoystickStarted).GetHandle());
+			EnhancedInputBindingHandles.Add(EIC->BindAction(IA_LeftJoystick, ETriggerEvent::Triggered,
+								this, &UWuReUserWidget::HandleLeftJoystickTriggered).GetHandle());
+		}
+		if (IsValid(IA_RightJoystick))
+		{
+			EnhancedInputBindingHandles.Add(EIC->BindAction(IA_RightJoystick, ETriggerEvent::Started,
+								this, &UWuReUserWidget::HandleRightJoystickStarted).GetHandle());
+			EnhancedInputBindingHandles.Add(EIC->BindAction(IA_RightJoystick, ETriggerEvent::Triggered,
+								this, &UWuReUserWidget::HandleRightJoystickTriggered).GetHandle());
 		}
 	}
 }
@@ -117,6 +208,25 @@ void UWuReUserWidget::NativeOnDeactivated()
 		}
 	}
 	Super::NativeOnDeactivated();
+}
+
+UWidget* UWuReUserWidget::GetFocusedWidget()
+{
+	bool bIsPlayerControllerValid = false;
+	AWuRePlayerController* PC = GetPlayerController(bIsPlayerControllerValid);
+	const ULocalPlayer* LP = bIsPlayerControllerValid ? PC->GetLocalPlayer() : nullptr;
+	const TSharedPtr<const FSlateUser> User = LP ? LP->GetSlateUser() : nullptr;
+	if (!User) return nullptr;
+
+	for (TSharedPtr<SWidget> W = User->GetFocusedWidget(); W.IsValid(); W = W->GetParentWidget())
+	{
+		if (TSharedPtr<FReflectionMetaData> Meta = W->GetMetaData<FReflectionMetaData>())
+		{
+			if (UWidget* Widget = Cast<UWidget>(Meta->SourceObject.Get()))
+				return Widget;
+		}
+	}
+	return nullptr;
 }
 
 void UWuReUserWidget::KeyboardActivated_Implementation()
@@ -372,12 +482,13 @@ bool UWuReUserWidget::SetGamepadIcon(UMaterialInstanceDynamic* MatParam, const E
 
 void UWuReUserWidget::HandleInputMethodChanged(ECommonInputType InInputType)
 {
+	InputType = InInputType;
 	if (InInputType == ECommonInputType::Gamepad)
 	{
-		GamepadActivated_Implementation();
+		GamepadActivated();
 	}
 	else if (InInputType == ECommonInputType::MouseAndKeyboard)
 	{
-		KeyboardActivated_Implementation();
+		KeyboardActivated();
 	}
 }

@@ -50,37 +50,58 @@
 		{
 			"Name": "DLSSMoviePipelineSupport",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "Streamline",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "DLSS",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "StreamlineDLSSG",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "StreamlineReflex",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "NIS",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "StreamlineDeepDVC",
 			"Enabled": true,
-			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss"
+			"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/nvidia-dlss",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "OnlineSubsystemSteam",

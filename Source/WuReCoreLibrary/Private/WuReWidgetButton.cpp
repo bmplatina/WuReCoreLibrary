@@ -3,6 +3,11 @@
 #include "WuReWidgetButton.h"
 #include "Components/ButtonSlot.h"
 
+void UWuReWidgetButton::SetText(const FText InText)
+{
+	TextBlock->SetText(InText);
+}
+
 void UWuReWidgetButton::NativePreConstruct()
 {
 	Super::NativePreConstruct();

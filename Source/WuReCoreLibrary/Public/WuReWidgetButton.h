@@ -15,6 +15,10 @@ class WURECORELIBRARY_API UWuReWidgetButton : public UCommonButtonBase
 {
 	GENERATED_BODY()
 	
+public:
+	UFUNCTION(BlueprintCallable, Category="Button|Text")
+	void SetText(const FText InText);
+	
 protected:
 	virtual void NativePreConstruct() override;
 	

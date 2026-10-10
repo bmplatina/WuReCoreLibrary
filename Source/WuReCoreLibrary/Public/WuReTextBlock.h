@@ -20,7 +20,7 @@ class WURECORELIBRARY_API UWuReTextBlock : public UCommonTextBlock
 public:
 	virtual void SetText(FText InText) override;
 
-	UPROPERTY(EditAnywhere, Category="WU:RE Widget|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="WU:RE Widget|Localization")
 	ELocalizationType LocalizationCategory = ELocalizationType::UserInterface;
 
 protected:

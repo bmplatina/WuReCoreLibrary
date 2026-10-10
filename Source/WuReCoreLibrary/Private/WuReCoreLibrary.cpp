@@ -2,7 +2,7 @@
 
 #include "WuReCoreLibrary.h"
 
-DEFINE_LOG_CATEGORY(WuReCoreLibrary);
+DEFINE_LOG_CATEGORY(LogWuReCoreLibrary);
 
 #define LOCTEXT_NAMESPACE "FWuReCoreLibraryModule"
 

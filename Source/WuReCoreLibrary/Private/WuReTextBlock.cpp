@@ -35,11 +35,11 @@ FText UWuReTextBlock::ResolveLocalizedText() const
 		return FText::FromString(Code);
 	}
 
-	const ELocalizationType ContextType = Code.Contains(TEXT("UI"))
-		                                      ? ELocalizationType::UserInterface
-		                                      : ELocalizationType::Dialogue;
+	// const ELocalizationType ContextType = Code.Contains(TEXT("CC"))
+	// 	                                      ? ELocalizationType::Dialogue
+	// 	                                      : ELocalizationType::UserInterface;
 
-	return LocalizationSubsystem->GetLocalizedText(Code, ContextType);
+	return LocalizationSubsystem->GetLocalizedText(Code, LocalizationCategory);
 }
 
 TSharedRef<SWidget> UWuReTextBlock::RebuildWidget()

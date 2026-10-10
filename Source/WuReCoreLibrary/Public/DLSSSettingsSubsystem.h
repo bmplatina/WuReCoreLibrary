@@ -19,7 +19,7 @@
 
 class UWuReGameUserSettings;
 
-UCLASS(DisplayName="WU:RE DLSS Settings Subsystem")
+UCLASS(Abstract, Blueprintable, DisplayName="WU:RE DLSS Settings Subsystem")
 class WURECORELIBRARY_API UDLSSSettingsSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -43,23 +43,38 @@ private:
 	 */
 public:
 	UFUNCTION(BlueprintCallable, Category="DLSS|Settings")
-	void ApplyNewSettings(float SelectedRenderScale, bool bIsRayTracingChecked, int32 SelectedAAMode,
-	                  UDLSSMode SelectedDLSSMode, UNISMode SelectedNISMode, int32 SelectedFGMode,
-	                  int32 SelectedReflexMode, int32 SelectedUpscalingMode);
+	void ApplyNewSettings(float SelectedRenderScale, bool bIsRayTracingChecked, EBuiltInAAMode SelectedAAMode,
+	                      UWuReDLSSMode SelectedDLSSMode, UWuReNISMode SelectedNISMode, EWuReStreamlineDLSSGMode SelectedFGMode,
+	                      EWuReStreamlineReflexMode SelectedReflexMode, EUpscaleMode SelectedUpscalingMode);
 
 	void ApplySettingsFromUserSettings();
-	
+
 	UFUNCTION(BlueprintPure, Category="DLSS|Settings")
 	FDLSSCapabilities GetDLSSCapabilities() const;
 
-private:
-	void SetUpscaleDLSS(const uint8 DLSSModeLocal);
-	void SetUpscaleNIS(const uint8 DLSSModeLocal);
-	void SetUpscaleBuiltIn();
-	void SetAntiAliasingCVar(const EBuiltInAAMode AAMode);
+	UFUNCTION(BlueprintPure, Category="DLSS|Capabilities", DisplayName="Get Supported DLSS-SR Modes")
+	TArray<UWuReDLSSMode> GetSupportedDLSSModes() const;
+
+	UFUNCTION(BlueprintPure, Category="DLSS|Capabilities", DisplayName="Get Supported DLSS-FG Modes")
+	TArray<EWuReStreamlineDLSSGMode> GetSupportedDLSSFGModes() const;
+
+	UFUNCTION(BlueprintCallable, Category="DLSS|Macros")
 	void EnableDLAA(const bool bDLAAEnabled);
-	void SetDLSSMode(const uint8 DLSSModeLocal);
-	void SetDLSSNoAuto(const UDLSSMode NewDLSSMode, const bool bDLAAEnabled, const bool bRestoreFullResWhenDisabled);
+	UFUNCTION(BlueprintCallable, Category="DLSS|Macros")
+	void SetDLSSMode(const UWuReDLSSMode DLSSModeLocal);
+	
+	UFUNCTION(BlueprintCallable, Category="DLSS")
+	FString SetUpscaleDLSS(UWuReDLSSMode DLSSModeLocal = UWuReDLSSMode::Default);
+	UFUNCTION(BlueprintCallable, Category="DLSS|NIS")
+	FString SetUpscaleNIS(UWuReNISMode NISModeLocal);
+	UFUNCTION(BlueprintCallable, Category="DLSS")
+	FString SetUpscaleBuiltIn();
+	UFUNCTION(BlueprintCallable, Category="DLSS")
+	void SetAntiAliasingCVar(const EBuiltInAAMode AAMode);
+
+private:
+	void SetDLSSNoAuto(const UWuReDLSSMode NewDLSSMode, const bool bDLAAEnabled,
+	                   const bool bRestoreFullResWhenDisabled);
 	void UpdateDLSSDevStats();
 	void SetDLSSAuto(const FVector2D ScreenResolution, const bool bDLSSAuto, const bool bDLAAEnabled,
 	                 const bool bRestoreFullResWhenDisabled);

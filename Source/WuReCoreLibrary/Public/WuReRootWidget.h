@@ -24,7 +24,7 @@ public:
 	UWuReUserWidget* CreateAndAddWidgetToViewport(const TSubclassOf<UWuReUserWidget> InWidgetClass, EInputMode InputMode);
 	
 	UFUNCTION(BlueprintCallable, Category="Widget|Stack")
-	void RemoveWidgetFromViewport(UWuReUserWidget* InWidget, EInputMode InputMode);
+	void RemoveWidgetFromViewport(UWuReUserWidget* InWidget); // , EInputMode InputMode);
 	
 	UFUNCTION(BlueprintPure, Category="Input|Widget")
 	bool GetRootHasWidget(UWuReUserWidget* TestWidget);
@@ -49,9 +49,10 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category="Widget|Stack", meta = (BindWidget))
 	TObjectPtr<UCommonActivatableWidgetStack> EscapeMenuWidgetStack;
-	
-	UPROPERTY(BlueprintReadOnly, Category="Widget|EscapeMenu", meta=(BindWidget))
-	TObjectPtr<UNamedSlot> EscapeMenuWidgetSlot;
 	UPROPERTY(EditDefaultsOnly, Category="Widget|EscapeMenu")
 	TSubclassOf<UWuReUserWidget> EscapeMenuWidgetClass;
+	
+private:
+	// Escape 메뉴가 열려 있는 동안 게임플레이 스택의 활성 위젯을 숨기거나 다시 보이게 함
+	void SetGameplayActiveWidgetVisibility(ESlateVisibility InVisibility);
 };

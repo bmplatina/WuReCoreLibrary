@@ -32,6 +32,7 @@ public class WuReCoreLibrary : ModuleRules
 			"OnlineSubsystem",
 			"OnlineSubsystemSteam",
 			"Json", "JsonUtilities",
+			"RHI", "RenderCore"
 		};
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -52,7 +53,7 @@ public class WuReCoreLibrary : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"RenderCore",
+				"RenderCore", "Niagara",
 				// ... add private dependencies that you statically link with here ...
 			}
 			);
