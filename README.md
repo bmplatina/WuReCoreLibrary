@@ -2,9 +2,9 @@
 WU:RE Core Library는 WU:RE 게임 프로젝트들이 같이 쓰는 Unreal Engine 5.8 런타임 C++ 플러그인입니다.
 
 
-> [Bitmap Developer](https://developer.prodbybitmap.com/ko/unreal-study/wurecorelibrary)를 참고하십시오.
+> [Bitmap Developer](//developer.prodbybitmap.com/ko/unreal-study/wurecorelibrary)를 참고하십시오.
 > 
-> Read [Bitmap Developer](README_EnGb.md) article for detailed English description.
+> Read [Bitmap Developer](//developer.prodbybitmap.com/en/unreal-study/wurecorelibrary) article for detailed English description.
 
 # 주요 기능
 * 비동기 레벨 스트리밍
